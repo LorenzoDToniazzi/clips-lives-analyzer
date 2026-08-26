@@ -1,0 +1,33 @@
+{
+  "mission": "Encontrar tudo o que for bom conteúdo e aceitar alguns candidatos duvidosos, sem chamar rotina vazia de conteúdo.",
+  "include_gates": [
+    "Gameplay excepcional: solokill, outplay, multikill, escape, teamfight decisiva, interação rara ou erro memorável.",
+    "Fala relevante: explicação, hipótese, opinião forte, reação, piada, previsão, decisão ou interação com chat.",
+    "Ciência/off-meta: pick, runa, build, item estranho, adaptação, teste, sucesso ou falha.",
+    "Sistemas autorais da live: X1, Arena, Draft Lab, Laboratório, algoritmo, bugs e interação com viewers.",
+    "História: hipótese seguida de teste, promessa seguida de payoff, repetição com consequência ou callback.",
+    "Novidade ou valor educativo: interação incomum ou explicação que ensina algo, mesmo durante gameplay calmo.",
+    "Highlight mecânico bonito é válido sozinho; conteúdo não se resume a kills."
+  ],
+  "discard": [
+    "Farm comum sem fala relevante.",
+    "Caminhada, recall, compra ou loading rotineiros sem explicação ou novidade.",
+    "Morte comum, kill trivial ou luta confusa sem diferencial, reação ou consequência.",
+    "Movimento, ruído ou mudança de tela usados como única justificativa.",
+    "Conversa administrativa sem valor para quem não estava na live.",
+    "Repetição sem novo desenvolvimento."
+  ],
+  "grading": {
+    "A": "Forte: história, valor ou impacto claros; quase certamente vale revisar.",
+    "B": "Bom: conteúdo concreto e aproveitável, talvez dependa de edição ou contexto curto.",
+    "C": "Possível: há evidência real e específica, mas a história ou payoff ainda é incerto.",
+    "discard": "Rotina ou sinal insuficiente; não deve aparecer nos timestamps."
+  },
+  "non_negotiable": [
+    "Nunca recomendar apenas porque houve movimento ou volume alto.",
+    "Sempre descrever concretamente o que ocorreu antes de manter um candidato.",
+    "Preservar preparação e reação ao ajustar timestamps.",
+    "Na dúvida entre C e descarte, manter C somente se houver uma evidência editorial específica.",
+    "Na dúvida entre perder algo bom e enviar um extra fundamentado, enviar o extra."
+  ]
+}

@@ -1,0 +1,106 @@
+$ErrorActionPreference = "Stop"
+Set-Location (Split-Path -Parent $PSScriptRoot)
+
+function Refresh-Path {
+    $machine = [Environment]::GetEnvironmentVariable("Path", "Machine")
+    $user = [Environment]::GetEnvironmentVariable("Path", "User")
+    $env:Path = "$machine;$user"
+}
+
+function Has-Command([string]$Name) {
+    return [bool](Get-Command $Name -ErrorAction SilentlyContinue)
+}
+
+function Install-WingetPackage([string]$Id, [string]$Name) {
+    Write-Host "Instalando $Name..." -ForegroundColor Cyan
+    winget install --id $Id --exact --silent --accept-package-agreements --accept-source-agreements
+    Refresh-Path
+}
+
+if (-not (Has-Command "winget")) {
+    throw "O winget não está disponível. Atualize o App Installer pela Microsoft Store."
+}
+
+$pythonCommand = $null
+if (Has-Command "py") {
+    try {
+        & py -3.11 --version | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            $pythonCommand = @("py", "-3.11")
+        }
+    } catch {}
+}
+if (-not $pythonCommand) {
+    Install-WingetPackage "Python.Python.3.11" "Python 3.11"
+    $pythonCommand = @("py", "-3.11")
+}
+
+if (-not (Has-Command "ffmpeg")) {
+    Install-WingetPackage "Gyan.FFmpeg" "FFmpeg"
+}
+if (-not (Has-Command "ollama")) {
+    Install-WingetPackage "Ollama.Ollama" "Ollama"
+}
+Refresh-Path
+
+if (Has-Command "nvidia-smi") {
+    Write-Host "GPU NVIDIA encontrada." -ForegroundColor Green
+} else {
+    Write-Warning "nvidia-smi não foi encontrado. Atualize o driver NVIDIA para usar a GPU."
+}
+
+if (-not (Test-Path ".venv\Scripts\python.exe")) {
+    Write-Host "Criando ambiente isolado..." -ForegroundColor Cyan
+    & $pythonCommand[0] $pythonCommand[1] -m venv .venv
+}
+$venvPython = Join-Path $PWD ".venv\Scripts\python.exe"
+& $venvPython -m pip install --upgrade pip setuptools wheel
+& $venvPython -m pip install --upgrade -e .
+
+$ollamaReady = $false
+try {
+    Invoke-RestMethod -Uri "http://127.0.0.1:11434/api/version" -TimeoutSec 3 | Out-Null
+    $ollamaReady = $true
+} catch {}
+if (-not $ollamaReady) {
+    Write-Host "Iniciando o motor local de IA..." -ForegroundColor Cyan
+    Start-Process -FilePath "ollama" -ArgumentList "serve" -WindowStyle Hidden
+    for ($attempt = 0; $attempt -lt 30; $attempt++) {
+        Start-Sleep -Seconds 1
+        try {
+            Invoke-RestMethod -Uri "http://127.0.0.1:11434/api/version" -TimeoutSec 2 | Out-Null
+            $ollamaReady = $true
+            break
+        } catch {}
+    }
+}
+if (-not $ollamaReady) {
+    throw "O Ollama foi instalado, mas não iniciou. Reinicie o Windows e rode INSTALAR.bat novamente."
+}
+
+Write-Host "Baixando o analista visual local (aprox. 6,1 GB)..." -ForegroundColor Cyan
+& ollama pull qwen3-vl:8b
+if ($LASTEXITCODE -ne 0) {
+    throw "Falha ao baixar qwen3-vl:8b."
+}
+
+Write-Host "Baixando o modelo de transcrição..." -ForegroundColor Cyan
+& $venvPython -c "from faster_whisper import WhisperModel; WhisperModel('turbo', device='cpu', compute_type='int8'); print('Whisper pronto')"
+if ($LASTEXITCODE -ne 0) {
+    throw "Falha ao preparar o Whisper."
+}
+
+Write-Host "Executando diagnóstico..." -ForegroundColor Cyan
+& $venvPython -m clips_lives_analyzer doctor
+
+$desktop = [Environment]::GetFolderPath("Desktop")
+$shortcutPath = Join-Path $desktop "Clips Lives Analyzer.lnk"
+$wsh = New-Object -ComObject WScript.Shell
+$shortcut = $wsh.CreateShortcut($shortcutPath)
+$shortcut.TargetPath = Join-Path $PWD "ABRIR.bat"
+$shortcut.WorkingDirectory = $PWD
+$shortcut.Description = "Analisador local de VODs"
+$shortcut.Save()
+
+Write-Host ""
+Write-Host "Pronto. Use o atalho 'Clips Lives Analyzer' na área de trabalho." -ForegroundColor Green

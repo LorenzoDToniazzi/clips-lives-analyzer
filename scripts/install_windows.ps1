@@ -55,7 +55,23 @@ if (-not (Test-Path ".venv\Scripts\python.exe")) {
 }
 $venvPython = Join-Path $PWD ".venv\Scripts\python.exe"
 & $venvPython -m pip install --upgrade pip setuptools wheel
-& $venvPython -m pip install --upgrade -e .
+if ($LASTEXITCODE -ne 0) {
+    throw "Falha ao preparar o instalador Python."
+}
+& $venvPython -m pip install --upgrade -e ".[dev]"
+if ($LASTEXITCODE -ne 0) {
+    throw "Falha ao instalar o Clips Lives Analyzer."
+}
+
+Write-Host "Compilando e testando o programa..." -ForegroundColor Cyan
+& $venvPython -m compileall -q -f src tests
+if ($LASTEXITCODE -ne 0) {
+    throw "O código não compilou corretamente."
+}
+& $venvPython -m pytest -q
+if ($LASTEXITCODE -ne 0) {
+    throw "Os testes internos falharam. Não prossiga com esta versão."
+}
 
 $ollamaReady = $false
 try {

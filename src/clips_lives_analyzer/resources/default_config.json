@@ -20,7 +20,7 @@
   "candidate_merge_gap_seconds": 12,
   "max_deep_candidates_per_hour": 45,
   "story_max_gap_seconds": 7200,
-  "storyboard_frames": 18,
+  "storyboard_frames": 27,
   "storyboard_columns": 3,
   "ollama_context": 32768,
   "ollama_timeout_seconds": 900,

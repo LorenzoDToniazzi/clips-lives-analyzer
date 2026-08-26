@@ -32,7 +32,7 @@ class AnalyzerConfig:
     candidate_merge_gap_seconds: int = 12
     max_deep_candidates_per_hour: int = 45
     story_max_gap_seconds: int = 7200
-    storyboard_frames: int = 18
+    storyboard_frames: int = 27
     storyboard_columns: int = 3
     ollama_context: int = 32768
     ollama_timeout_seconds: int = 900

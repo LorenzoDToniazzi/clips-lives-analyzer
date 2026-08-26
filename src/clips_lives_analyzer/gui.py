@@ -8,14 +8,14 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
-from clips_lives_analyzer.config import AnalyzerConfig, load_config
+from clips_lives_analyzer.config import load_config
 from clips_lives_analyzer.database import QueueDatabase
 from clips_lives_analyzer.doctor import run_diagnostics
 from clips_lives_analyzer.models import Job, JobStatus
 from clips_lives_analyzer.paths import AppPaths
 from clips_lives_analyzer.pipeline import AnalyzerPipeline
 from clips_lives_analyzer.queue import QueueController
-from clips_lives_analyzer.utils import VIDEO_EXTENSIONS, format_timestamp
+from clips_lives_analyzer.utils import VIDEO_EXTENSIONS
 
 
 STATUS_LABELS = {

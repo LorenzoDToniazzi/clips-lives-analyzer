@@ -5,7 +5,6 @@ import json
 from collections import defaultdict
 from collections.abc import Callable
 
-import numpy as np
 
 from clips_lives_analyzer.config import AnalyzerConfig
 from clips_lives_analyzer.models import Candidate, SignalPoint, TranscriptSegment

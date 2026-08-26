@@ -100,7 +100,7 @@ class StoryboardBuilder:
             "black",
         )
         draw = ImageDraw.Draw(sheet)
-        font = ImageFont.load_default(size=22)
+        font = ImageFont.load_default()
         for local_index, frame_path in enumerate(frames):
             global_index = offset + local_index
             with Image.open(frame_path) as image:

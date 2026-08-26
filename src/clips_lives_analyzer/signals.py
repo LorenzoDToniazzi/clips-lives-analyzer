@@ -101,7 +101,9 @@ def scan_audio(audio_path: Path, bucket_seconds: float) -> list[dict[str, float]
     energies = np.array([value for _, value in raw])
     normalized = _robust_normalize(energies)
     if normalized.size:
-        baseline = np.convolve(normalized, np.ones(21) / 21, mode="same")
+        kernel_size = min(21, len(normalized))
+        kernel = np.ones(kernel_size) / kernel_size
+        baseline = np.convolve(normalized, kernel, mode="same")
         peaks = np.clip(normalized - baseline, 0, 1)
     else:
         peaks = normalized

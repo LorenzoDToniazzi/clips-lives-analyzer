@@ -17,6 +17,7 @@ class AnalyzerConfig:
     whisper_device: str = "auto"
     whisper_gpu_compute_type: str = "int8_float16"
     whisper_cpu_compute_type: str = "int8"
+    whisper_allow_cpu_fallback: bool = False
     ollama_url: str = "http://127.0.0.1:11434"
     text_model: str = "qwen3-vl:8b"
     vision_model: str = "qwen3-vl:8b"
@@ -29,12 +30,13 @@ class AnalyzerConfig:
     candidate_post_seconds: int = 18
     candidate_min_seconds: int = 18
     candidate_max_seconds: int = 115
-    candidate_merge_gap_seconds: int = 12
-    max_deep_candidates_per_hour: int = 45
+    candidate_merge_overlap_ratio: float = 0.40
     story_max_gap_seconds: int = 7200
-    storyboard_frames: int = 27
+    storyboard_initial_frames: int = 9
+    storyboard_deep_frames: int = 27
     storyboard_columns: int = 3
-    ollama_context: int = 32768
+    ollama_context: int = 8192
+    ollama_story_context: int = 16384
     ollama_timeout_seconds: int = 900
     cleanup_temporary_files: bool = True
     keep_internal_analysis: bool = True
@@ -46,8 +48,18 @@ class AnalyzerConfig:
             raise ValueError("scan_fps deve ficar entre 0.25 e 5")
         if self.candidate_min_seconds >= self.candidate_max_seconds:
             raise ValueError("candidate_min_seconds deve ser menor que candidate_max_seconds")
-        if self.max_deep_candidates_per_hour < 10:
-            raise ValueError("max_deep_candidates_per_hour não pode ser menor que 10")
+        if not 0 < self.candidate_merge_overlap_ratio <= 1:
+            raise ValueError("candidate_merge_overlap_ratio deve ficar entre 0 e 1")
+        if self.storyboard_initial_frames < 3:
+            raise ValueError("storyboard_initial_frames deve ser pelo menos 3")
+        if self.storyboard_deep_frames < self.storyboard_initial_frames:
+            raise ValueError(
+                "storyboard_deep_frames deve ser maior ou igual a storyboard_initial_frames"
+            )
+        if self.ollama_context < 4096:
+            raise ValueError("ollama_context deve ser pelo menos 4096")
+        if self.ollama_story_context < self.ollama_context:
+            raise ValueError("ollama_story_context deve ser maior ou igual a ollama_context")
 
     def save(self, path: Path) -> None:
         self.validate()

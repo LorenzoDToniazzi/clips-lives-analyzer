@@ -16,16 +16,10 @@ def write_report(
     keep_internal: bool,
 ) -> Path:
     result_dir.mkdir(parents=True, exist_ok=True)
-    kept = sorted(
-        (candidate for candidate in candidates if candidate.keep),
-        key=lambda item: item.start,
-    )
+    kept = sorted((candidate for candidate in candidates if candidate.keep), key=lambda item: item.start)
     timestamp_path = result_dir / "timestamps.txt"
     lines = [Path(media.path).name, ""]
-    lines.extend(
-        f"{format_timestamp(item.start)} - {format_timestamp(item.end)}"
-        for item in kept
-    )
+    lines.extend(f"{format_timestamp(item.start)} - {format_timestamp(item.end)}" for item in kept)
     timestamp_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
     if keep_internal:
         atomic_write_json(
@@ -48,14 +42,17 @@ def write_report(
                     f"## {index}. {format_timestamp(item.start)} - {format_timestamp(item.end)}",
                     "",
                     f"- Nota interna: {item.grade} ({item.confidence:.0%})",
+                    f"- Potencial: {item.content_potential}",
                     f"- Categoria: {item.category}",
                     f"- O que aconteceu: {item.description}",
                     f"- Por que entrou: {item.why_good}",
+                    f"- Diferença para rotina: {item.routine_difference}",
+                    f"- Contexto: {item.context_note}",
+                    f"- Relacionados: {', '.join(item.related_ids) if item.related_ids else '-'}",
+                    "- Evidências:",
+                    *([f"  - {evidence}" for evidence in item.evidence] or ["  - (não registrada)"]),
                     "",
                 ]
             )
-        (result_dir / "details.md").write_text(
-            "\n".join(details),
-            encoding="utf-8",
-        )
+        (result_dir / "details.md").write_text("\n".join(details), encoding="utf-8")
     return timestamp_path

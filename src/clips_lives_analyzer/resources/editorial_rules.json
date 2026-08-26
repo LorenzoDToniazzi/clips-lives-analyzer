@@ -1,33 +1,47 @@
 {
-  "mission": "Encontrar tudo o que for bom conteúdo e aceitar alguns candidatos duvidosos, sem chamar rotina vazia de conteúdo.",
+  "mission": "Encontrar praticamente todo momento com uma razão concreta para poder virar conteúdo, aceitando falsos positivos fundamentados para evitar perder clips bons. O sistema caça material para revisão; não decide publicação.",
+  "central_question": "Existe alguma razão concreta para alguém querer assistir a este trecho além do simples fato de algo ter acontecido?",
+  "priority": "Recall primeiro. Na dúvida fundamentada, preservar como C. Na dúvida sem evidência, descartar.",
   "include_gates": [
-    "Gameplay excepcional: solokill, outplay, multikill, escape, teamfight decisiva, interação rara ou erro memorável.",
-    "Fala relevante: explicação, hipótese, opinião forte, reação, piada, previsão, decisão ou interação com chat.",
-    "Ciência/off-meta: pick, runa, build, item estranho, adaptação, teste, sucesso ou falha.",
-    "Sistemas autorais da live: X1, Arena, Draft Lab, Laboratório, algoritmo, bugs e interação com viewers.",
-    "História: hipótese seguida de teste, promessa seguida de payoff, repetição com consequência ou callback.",
-    "Novidade ou valor educativo: interação incomum ou explicação que ensina algo, mesmo durante gameplay calmo.",
-    "Highlight mecânico bonito é válido sozinho; conteúdo não se resume a kills."
+    "Gameplay com valor claro: solokill interessante, outplay, multikill, clutch, escape, virada, dive, execução bonita, dodge, prediction, teamfight boa, 1v2/1v3, tentativa marcante, erro memorável ou situação de gameplay com diferencial concreto. Não exigir que toda jogada seja excepcional.",
+    "Ciência/off-meta/build: pick, runa, item ou build incomum com hipótese, explicação, teste, adaptação, descoberta, sucesso ou falha. Hipótese, explicação, teste e resultado podem ser candidatos independentes.",
+    "Explicação/educativo: raciocínio concreto sobre build, item, runa, matchup, lane, trade, mecânica, macro, draft, posicionamento, estratégia ou decisão. Gameplay calmo e farming não invalidam uma explicação boa.",
+    "Humor/reação/personalidade: piada, timing cômico, indignação, surpresa, comentário memorável, situação absurda ou contraste entre fala e resultado. Volume alto sozinho não prova conteúdo.",
+    "Erro/morte/situação negativa: morte engraçada, erro absurdo, decisão ruim explicável, Ciência falhando, tentativa que quase funciona, arrogância punida, bug ou falha que ensina algo. Morte comum continua sendo rotina.",
+    "Sistemas/comunidade: X1, Arena, Draft Lab, Laboratório, algoritmo, recompensas, viewers e chat quando houver disputa, virada, bug, descoberta, resultado inesperado, explicação, confusão ou interação relevante. Uso rotineiro do sistema não basta.",
+    "História/payoff: hipótese->teste, explicação->demonstração, promessa->resultado, previsão->confirmação/desastre, tentativa->repetição, problema->consequência ou callback. Momentos relacionados continuam válidos individualmente.",
+    "Highlight mecânico bonito é válido sozinho e não precisa de fala, Ciência, humor, reação ou história."
   ],
+  "category_checks": {
+    "gameplay": "O que diferencia este trecho de gameplay rotineiro?",
+    "ciencia_build": "Existe hipótese, explicação, teste ou resultado concreto?",
+    "explicacao_educativo": "Existe uma ideia concreta que alguém poderia aprender ou achar interessante?",
+    "humor_reacao": "Qual é a situação, fala ou contraste que dá valor à reação além do volume?",
+    "erro_situacao_negativa": "O contexto transforma a falha, morte ou erro em conteúdo?",
+    "sistema_comunidade": "Aconteceu algo além do funcionamento rotineiro do sistema?",
+    "historia_payoff": "Qual setup, promessa, hipótese ou evento anterior/posterior cria a relação?"
+  },
   "discard": [
-    "Farm comum sem fala relevante.",
-    "Caminhada, recall, compra ou loading rotineiros sem explicação ou novidade.",
-    "Morte comum, kill trivial ou luta confusa sem diferencial, reação ou consequência.",
-    "Movimento, ruído ou mudança de tela usados como única justificativa.",
+    "Farm comum sem fala, hipótese, humor, decisão ou contexto relevante.",
+    "Caminhada, recall, compra ou loading rotineiros sem explicação, novidade ou consequência.",
+    "Kill, morte ou luta comuns sem diferencial concreto. Elas podem sobreviver quando contexto, Ciência, humor, explicação, consequência ou história adicionarem valor.",
+    "Movimento, pico de áudio, mudança de tela, atividade de HUD ou região do kill feed usados como única justificativa.",
     "Conversa administrativa sem valor para quem não estava na live.",
-    "Repetição sem novo desenvolvimento."
+    "Detecção duplicada do mesmo acontecimento por janelas sobrepostas. Não tratar momentos diferentes como redundantes apenas por serem semelhantes."
   ],
   "grading": {
-    "A": "Forte: história, valor ou impacto claros; quase certamente vale revisar.",
-    "B": "Bom: conteúdo concreto e aproveitável, talvez dependa de edição ou contexto curto.",
-    "C": "Possível: há evidência real e específica, mas a história ou payoff ainda é incerto.",
-    "discard": "Rotina ou sinal insuficiente; não deve aparecer nos timestamps."
+    "A": "Forte candidato: há razão concreta e clara para provavelmente virar conteúdo.",
+    "B": "Bom candidato: existe valor concreto, embora possa depender de edição ou contexto curto.",
+    "C": "Revisar: há evidência concreta de possível valor, mas a análise não tem segurança suficiente. Deve permanecer nos timestamps.",
+    "discard": "Nenhuma razão concreta foi encontrada além de rotina ou sinais técnicos."
   },
   "non_negotiable": [
-    "Nunca recomendar apenas porque houve movimento ou volume alto.",
-    "Sempre descrever concretamente o que ocorreu antes de manter um candidato.",
-    "Preservar preparação e reação ao ajustar timestamps.",
-    "Na dúvida entre C e descarte, manter C somente se houver uma evidência editorial específica.",
+    "Sinais técnicos apenas abrem investigação; nunca aprovam conteúdo sozinhos.",
+    "Sempre descrever objetivamente o que ocorreu e apontar evidência concreta antes de manter um candidato.",
+    "Hook fraco não é motivo de descarte: estamos selecionando material bruto que pode ser reeditado.",
+    "Preservar preparação, evento e reação/payoff necessários ao ajustar timestamps.",
+    "Não impor quota editorial por hora e não descartar um bom momento porque já existem outros semelhantes.",
+    "Momentos relacionados podem receber related=true sem serem fundidos ou eliminados.",
     "Na dúvida entre perder algo bom e enviar um extra fundamentado, enviar o extra."
   ]
 }

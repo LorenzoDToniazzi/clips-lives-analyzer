@@ -1,17 +1,11 @@
 from __future__ import annotations
 
-import json
 import shutil
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from clips_lives_analyzer.candidates import (
-    cap_by_hour,
-    merge_candidates,
-    semantic_proposals,
-    signal_proposals,
-)
+from clips_lives_analyzer.candidates import merge_candidates, semantic_proposals, signal_proposals
 from clips_lives_analyzer.config import AnalyzerConfig, load_editorial_rules
 from clips_lives_analyzer.editorial import EditorialAnalyzer
 from clips_lives_analyzer.media import extract_audio, probe_media, require_binary
@@ -178,16 +172,9 @@ class AnalyzerPipeline:
                 cancelled=cancelled,
             )
             visual = signal_proposals(signals, media.duration, self.config)
-            proposals = cap_by_hour(
-                merge_candidates(semantic + visual, media.duration, self.config),
-                self.config,
-            )
+            proposals = merge_candidates(semantic + visual, media.duration, self.config)
             atomic_write_json(proposals_path, [item.to_dict() for item in proposals])
-        checkpoint(
-            Stage.PROPOSALS,
-            64,
-            f"{len(proposals)} janelas reais separadas para inspeção",
-        )
+        checkpoint(Stage.PROPOSALS, 64, f"{len(proposals)} janelas reais separadas para inspeção")
 
         deep_path = work_dir / "deep_analysis.json"
         deep_data = read_json(deep_path, [])
@@ -237,11 +224,8 @@ class AnalyzerPipeline:
                 analyzed,
                 cancelled=cancelled,
             )
-            atomic_write_json(
-                stories_path,
-                [item.to_dict() for item in final_candidates],
-            )
-        checkpoint(Stage.STORIES, 97, "Relações e payoffs distantes verificados")
+            atomic_write_json(stories_path, [item.to_dict() for item in final_candidates])
+        checkpoint(Stage.STORIES, 97, "Relações entre candidatos verificados")
 
         metadata["job_id"] = job.id
         metadata["analysis_profile"] = self.config.analysis_profile

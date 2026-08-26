@@ -21,9 +21,7 @@ def run_diagnostics(paths: AppPaths, config: AnalyzerConfig) -> list[Check]:
     checks = []
     for binary in ("ffmpeg", "ffprobe"):
         location = shutil.which(binary)
-        checks.append(
-            Check(binary, bool(location), location or "não encontrado no PATH")
-        )
+        checks.append(Check(binary, bool(location), location or "não encontrado no PATH"))
     try:
         client = OllamaClient(config)
         version = client.version()
@@ -41,13 +39,16 @@ def run_diagnostics(paths: AppPaths, config: AnalyzerConfig) -> list[Check]:
     except Exception as exc:
         checks.append(Check("Ollama", False, str(exc)))
     cuda = Transcriber.cuda_available()
-    checks.append(
-        Check(
-            "Whisper GPU",
-            cuda,
-            "CUDA disponível" if cuda else "usará CPU automaticamente",
+    if cuda:
+        whisper_details = "GPU NVIDIA detectada pelo CTranslate2; a inferência confirmará as bibliotecas CUDA."
+    elif config.whisper_allow_cpu_fallback:
+        whisper_details = "CUDA não detectada; fallback para CPU foi explicitamente habilitado."
+    else:
+        whisper_details = (
+            "CUDA não detectada e fallback para CPU está desativado; a análise será bloqueada "
+            "em vez de consumir CPU silenciosamente."
         )
-    )
+    checks.append(Check("Whisper GPU", cuda, whisper_details))
     usage = shutil.disk_usage(paths.root.parent if paths.root.parent.exists() else Path.cwd())
     free_gb = usage.free / (1024**3)
     checks.append(

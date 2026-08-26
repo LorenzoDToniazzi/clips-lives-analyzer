@@ -24,15 +24,16 @@ class StoryboardBuilder:
         work_dir: Path,
         *,
         cancelled: Callable[[], bool],
+        frame_count: int | None = None,
     ) -> list[Path]:
-        candidate_dir = work_dir / "storyboards" / candidate.id
+        frame_count = frame_count or self.config.storyboard_initial_frames
+        candidate_dir = work_dir / "storyboards" / candidate.id / f"frames_{frame_count:03d}"
         sheets = sorted(candidate_dir.glob("sheet_*.jpg"))
         if sheets:
             return sheets
         raw_dir = candidate_dir / "raw"
         raw_dir.mkdir(parents=True, exist_ok=True)
         duration = max(1.0, candidate.end - candidate.start)
-        frame_count = self.config.storyboard_frames
         sample_fps = frame_count / duration
         ffmpeg = require_binary("ffmpeg")
         run_checked(

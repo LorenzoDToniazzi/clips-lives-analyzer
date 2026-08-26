@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections import defaultdict
 from collections.abc import Callable
-
 
 from clips_lives_analyzer.config import AnalyzerConfig
 from clips_lives_analyzer.models import Candidate, SignalPoint, TranscriptSegment
@@ -114,7 +112,8 @@ TRECHO ENTRE {format_timestamp(chunk_start)} E {format_timestamp(chunk_end)}:
 
 Liste falas ou pequenas histórias concretas que merecem inspeção visual. Inclua explicação de
 build/item/runa, Ciência/off-meta, hipótese, previsão, opinião, humor, reação, chat, X1, Arena,
-Laboratório, Draft Lab e qualquer payoff citado. Não liste conversa banal. Use segundos globais.
+Laboratório, Draft Lab e qualquer payoff citado. Não liste conversa banal. Uma explicação boa
+durante farming continua relevante. Use segundos globais e não invente timestamps.
 Amplie o começo e fim o suficiente para conter a ideia, mas permaneça dentro do trecho."""
         payload = client.generate_json(
             model=config.text_model,
@@ -182,9 +181,7 @@ def signal_proposals(
     )
     results = []
     for start, end in clustered:
-        nearby = [
-            item for item in anchors if start - 1 <= item[0] <= end + 1
-        ]
+        nearby = [item for item in anchors if start - 1 <= item[0] <= end + 1]
         sources = sorted({source for _, _, item_sources in nearby for source in item_sources})
         score = max((item[1] for item in nearby), default=0.5)
         window_start = max(0, start - config.candidate_pre_seconds)
@@ -209,11 +206,18 @@ def signal_proposals(
     return results
 
 
+def _overlap_ratio(first: Candidate, second: Candidate) -> float:
+    intersection = max(0.0, min(first.end, second.end) - max(first.start, second.start))
+    shorter = max(1.0, min(first.end - first.start, second.end - second.start))
+    return intersection / shorter
+
+
 def merge_candidates(
     candidates: list[Candidate],
     duration: float,
     config: AnalyzerConfig,
 ) -> list[Candidate]:
+    """Deduplica detecções sobrepostas do mesmo acontecimento, não eventos apenas próximos."""
     if not candidates:
         return []
     ordered = sorted(candidates, key=lambda item: (item.start, item.end))
@@ -226,7 +230,7 @@ def merge_candidates(
         union_start = min(previous.start, candidate.start)
         union_end = max(previous.end, candidate.end)
         can_merge = (
-            candidate.start <= previous.end + config.candidate_merge_gap_seconds
+            _overlap_ratio(previous, candidate) >= config.candidate_merge_overlap_ratio
             and union_end - union_start <= config.candidate_max_seconds
         )
         if not can_merge:
@@ -234,41 +238,10 @@ def merge_candidates(
             continue
         previous.start = union_start
         previous.end = min(duration, union_end)
-        previous.source_signals = sorted(
-            set(previous.source_signals + candidate.source_signals)
-        )
+        previous.source_signals = sorted(set(previous.source_signals + candidate.source_signals))
         previous.evidence = list(dict.fromkeys(previous.evidence + candidate.evidence))
         previous.proposal_score = max(previous.proposal_score, candidate.proposal_score)
         if candidate.description and candidate.description not in previous.description:
-            previous.description = (
-                f"{previous.description} {candidate.description}"
-            ).strip()[:900]
+            previous.description = f"{previous.description} {candidate.description}".strip()[:900]
         previous.id = candidate_id(previous.start, previous.end, "+".join(previous.source_signals))
     return merged
-
-
-def cap_by_hour(
-    candidates: list[Candidate],
-    config: AnalyzerConfig,
-) -> list[Candidate]:
-    groups: dict[int, list[Candidate]] = defaultdict(list)
-    for candidate in candidates:
-        groups[int(candidate.start // 3600)].append(candidate)
-    kept = []
-    for group in groups.values():
-        semantic = [
-            item
-            for item in group
-            if "fala" in item.source_signals
-        ]
-        signal_only = [
-            item
-            for item in group
-            if "fala" not in item.source_signals
-        ]
-        room = max(0, config.max_deep_candidates_per_hour - len(semantic))
-        kept.extend(semantic)
-        kept.extend(
-            sorted(signal_only, key=lambda item: item.proposal_score, reverse=True)[:room]
-        )
-    return sorted(kept, key=lambda item: item.start)

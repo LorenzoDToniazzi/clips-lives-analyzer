@@ -20,9 +20,7 @@ class OllamaClient:
         self.config = config
         parsed = urllib.parse.urlparse(config.ollama_url)
         if parsed.hostname not in {"127.0.0.1", "localhost", "::1"}:
-            raise ValueError(
-                "Por privacidade, ollama_url deve apontar para este computador."
-            )
+            raise ValueError("Por privacidade, ollama_url deve apontar para este computador.")
         self.base_url = config.ollama_url.rstrip("/")
 
     def _request(
@@ -98,6 +96,7 @@ class OllamaClient:
         schema: dict[str, Any],
         images: list[Path] | None = None,
         temperature: float = 0.1,
+        num_ctx: int | None = None,
     ) -> dict[str, Any]:
         payload = {
             "model": model,
@@ -110,7 +109,7 @@ class OllamaClient:
             "keep_alive": "10m",
             "options": {
                 "temperature": temperature,
-                "num_ctx": self.config.ollama_context,
+                "num_ctx": num_ctx or self.config.ollama_context,
             },
         }
         response = self._request("POST", "/api/generate", payload)

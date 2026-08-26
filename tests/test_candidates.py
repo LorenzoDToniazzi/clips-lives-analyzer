@@ -21,10 +21,7 @@ def test_routine_low_activity_does_not_create_candidate():
 
 def test_combined_combat_signals_create_usable_window():
     config = AnalyzerConfig()
-    signals = [
-        SignalPoint(time=float(index), motion=0.1, center_activity=0.1)
-        for index in range(100)
-    ]
+    signals = [SignalPoint(time=float(index), motion=0.1, center_activity=0.1) for index in range(100)]
     signals[50] = SignalPoint(
         time=50,
         motion=0.95,
@@ -40,11 +37,18 @@ def test_combined_combat_signals_create_usable_window():
     assert candidates[0].end - candidates[0].start >= config.candidate_min_seconds
 
 
-def test_semantic_and_visual_candidates_merge_without_giant_window():
-    config = AnalyzerConfig(candidate_merge_gap_seconds=10, candidate_max_seconds=90)
-    first = Candidate("a", 10, 40, ["fala"], description="item bizarro")
-    second = Candidate("b", 35, 60, ["combate_visual"], description="payoff")
-    far = Candidate("c", 300, 340, ["killfeed"])
-    merged = merge_candidates([first, second, far], 400, config)
-    assert len(merged) == 2
+def test_same_event_heavily_overlapping_candidates_merge():
+    config = AnalyzerConfig(candidate_merge_overlap_ratio=0.4, candidate_max_seconds=90)
+    first = Candidate("a", 10, 50, ["fala"], description="item bizarro")
+    second = Candidate("b", 30, 60, ["combate_visual"], description="payoff")
+    merged = merge_candidates([first, second], 100, config)
+    assert len(merged) == 1
     assert set(merged[0].source_signals) == {"fala", "combate_visual"}
+
+
+def test_distinct_close_events_are_not_merged_only_by_proximity():
+    config = AnalyzerConfig(candidate_merge_overlap_ratio=0.4, candidate_max_seconds=90)
+    first = Candidate("a", 10, 40, ["combate_visual"], description="primeira play")
+    second = Candidate("b", 36, 66, ["combate_visual"], description="segunda play")
+    merged = merge_candidates([first, second], 100, config)
+    assert len(merged) == 2

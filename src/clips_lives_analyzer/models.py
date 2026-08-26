@@ -98,6 +98,11 @@ class Candidate:
     confidence: float = 0.5
     why_good: str = ""
     related_ids: list[str] = field(default_factory=list)
+    content_potential: str = "incerto"
+    routine_difference: str = ""
+    context_note: str = ""
+    evidence_details: list[dict[str, Any]] = field(default_factory=list)
+    related_search_terms: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

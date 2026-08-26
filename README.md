@@ -3,14 +3,17 @@
 Aplicativo local para analisar VODs brutos de League of Legends e devolver timestamps de
 possíveis conteúdos bons, sem enviar vídeo, áudio ou transcrição para a internet.
 
-A meta do sistema é alta cobertura editorial: encontrar tudo que vale revisão, aceitar alguns
-candidatos duvidosos e descartar rotina vazia. O resultado principal de cada VOD é simples:
+A meta do sistema é alta cobertura editorial: encontrar praticamente tudo que vale revisão,
+aceitar alguns candidatos duvidosos e descartar rotina vazia. O resultado principal de cada VOD
+é simples:
 
     nome-do-vod.mp4
 
     00:12:31 - 00:13:18
     00:47:02 - 00:47:49
     01:21:11 - 01:22:06
+
+O programa caça material. Ele não tenta decidir sozinho o que será publicado.
 
 ## Como usar no Windows
 
@@ -25,21 +28,39 @@ Você não precisa abrir editor, terminal ou escrever código. O primeiro setup 
 
 ## O que ele realmente analisa
 
-O programa não usa um frame aleatório e finge que assistiu à live. O pipeline:
-
 1. transcreve todo o áudio com timestamps por palavra;
-2. percorre o vídeo continuamente a 2 amostras por segundo;
-3. mede combate, mudanças de cena, HUD, região do kill feed e energia/reação do áudio;
+2. percorre o vídeo continuamente a 2 amostras por segundo em 320x180 e escala de cinza;
+3. mede combate, mudanças de cena, HUD, região superior direita e energia/reação do áudio;
 4. usa a fala inteira para encontrar explicações, Ciências, humor, opiniões e sistemas da live;
 5. abre janelas com preparação e reação ao redor de sinais suspeitos;
-6. mostra storyboards temporais ao modelo visual local;
-7. obriga o modelo a explicar o que ocorreu antes de manter um candidato;
-8. procura histórias distantes como explicação -> teste -> payoff;
-9. devolve somente os intervalos sustentados por evidência.
+6. faz uma primeira inspeção multimodal com 9 frames distribuídos na janela;
+7. aprofunda para 27 frames somente quando a decisão é ambígua ou conflita com evidências fortes;
+8. exige descrição objetiva, razão editorial, diferença para rotina e evidências timestampadas;
+9. relaciona candidatos distantes quando ambos já foram encontrados;
+10. devolve somente os intervalos sustentados por evidência.
+
+Sinais técnicos nunca aprovam clips sozinhos. Eles apenas pedem inspeção.
 
 Kills bonitas são válidas sozinhas. Explicações de item, build ou pick estranho também são
-válidas durante gameplay calmo. Farming, caminhada, recall e luta genérica não entram sem um
-motivo editorial concreto.
+válidas durante gameplay calmo. Mortes e erros podem ser conteúdo quando contexto, humor,
+Ciência, tentativa ou consequência dão valor ao trecho.
+
+Não existe quota de clips por hora. Três highlights diferentes de Gragas continuam sendo três
+candidatos se os três tiverem valor. Só o mesmo acontecimento detectado por janelas fortemente
+sobrepostas é deduplicado.
+
+## Critério editorial
+
+A pergunta central é:
+
+> Existe alguma razão concreta para alguém querer assistir a este trecho além do simples fato de
+> algo ter acontecido?
+
+As portas principais são independentes: gameplay/highlight; Ciência/build; explicação/educativo;
+humor/reação; erro/morte com contexto; sistemas/comunidade; história/callback/payoff.
+
+A prioridade é recall. Na dúvida fundamentada, o momento pode permanecer como C para revisão. Na
+dúvida sem evidência concreta, é descartado.
 
 ## Fila e retomada
 
@@ -51,40 +72,32 @@ motivo editorial concreto.
 - Nunca altera o VOD original.
 - Temporários são apagados ao concluir por padrão.
 
-Os dados operacionais ficam em AppData/Local/InsanoToni/ClipsLivesAnalyzer.
-
 ## Hardware e desempenho
 
-Configuração-alvo inicial:
+A RTX 5060 Ti 16 GB, 16 GB de RAM e Ryzen 5 9600X são a máquina de calibração inicial, não
+requisitos mínimos comprovados.
 
-- Windows 10 22H2 ou Windows 11;
-- RTX 5060 Ti 16 GB;
-- 16 GB de RAM;
-- CPU Ryzen 5 9600X;
-- driver NVIDIA atualizado.
+O modelo visual padrão continua sendo qwen3-vl:8b. O contexto comum foi reduzido de 32K para 8K;
+a etapa textual que relaciona muitos candidatos pode usar 16K.
 
-O modelo visual padrão é qwen3-vl:8b, executado pelo Ollama local. O Whisper tenta usar CUDA e
-cai automaticamente para CPU se as bibliotecas CUDA de transcrição não estiverem disponíveis.
-Isso deixa o processamento mais lento, mas não perde a análise nem quebra a fila.
+O Whisper tenta usar CUDA. Por padrão, se a GPU/CUDA falhar, a análise para com erro claro em vez
+de cair silenciosamente para CPU. O fallback lento pode ser habilitado explicitamente no config.
 
-O modo padrão coverage pode inspecionar até 45 janelas por hora de VOD. Esse limite existe para
-impedir que ruído gere centenas de análises, mas candidatos vindos de fala relevante têm
-prioridade e não são descartados só para caber no limite.
+O scanner permanece em 2 FPS no primeiro benchmark. Reduzi-lo para 1 FPS e testar Qwen 4B são
+experimentos posteriores que só serão aceitos se mantiverem recall.
 
 ## Resultado e privacidade
 
-O arquivo principal é timestamps.txt. Com a opção de análise interna ativa, o aplicativo também
-guarda details.md e analysis.json para depuração e calibração. Esses arquivos não são uploads e
-permanecem no computador.
-
-O cliente recusa URLs do Ollama que não apontem para localhost ou 127.0.0.1. Não há API paga,
-Google Drive, telemetria ou provedor externo no pipeline.
+O arquivo principal é timestamps.txt. Com a análise interna ativa, details.md e analysis.json são
+guardados localmente para depuração e calibração.
 
 ## Limite honesto da primeira versão
 
-O sistema está implementado e testável, mas sua precisão editorial real só pode ser medida na
-RTX e nos VODs de referência. O primeiro critério de aceitação é recuperar pelo menos 6 dos 7
-momentos do VOD-gabarito de 23 minutos, idealmente 7/7, aceitando até 10-15 candidatos no total.
-Ajustes de limiar e prompt devem ser feitos a partir desse resultado, não de chute.
+A precisão editorial real só pode ser medida na GPU e nos VODs de referência. O primeiro gabarito
+deve cobrir pelo menos oito casos positivos, incluindo highlights, sistemas da live e a explicação
+da build estranha de Gragas durante a partida. O mínimo funcional inicial é 7/8; a meta é 8/8.
 
-Consulte docs/ARCHITECTURE.md e docs/CALIBRATION.md para os detalhes técnicos.
+O componente de histórias atual apenas relaciona candidatos que já sobreviveram à detecção. Uma
+busca ativa por payoff que nunca virou candidato é uma evolução pós-benchmark.
+
+Consulte docs/ARCHITECTURE.md e docs/CALIBRATION.md.

@@ -113,8 +113,8 @@ $desktop = [Environment]::GetFolderPath("Desktop")
 $shortcutPath = Join-Path $desktop "Clips Lives Analyzer.lnk"
 $wsh = New-Object -ComObject WScript.Shell
 $shortcut = $wsh.CreateShortcut($shortcutPath)
-$shortcut.TargetPath = Join-Path $PWD "ABRIR.bat"
-$shortcut.WorkingDirectory = $PWD
+$shortcut.TargetPath = Join-Path $PWD.Path "ABRIR.bat"
+$shortcut.WorkingDirectory = $PWD.Path
 $shortcut.Description = "Analisador local de VODs"
 $shortcut.Save()
 

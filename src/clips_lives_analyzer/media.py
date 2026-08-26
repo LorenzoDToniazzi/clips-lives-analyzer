@@ -30,6 +30,7 @@ def run_checked(
     *,
     cancelled: Callable[[], bool] | None = None,
     cwd: Path | None = None,
+    timeout_seconds: float | None = None,
 ) -> subprocess.CompletedProcess[str]:
     process = subprocess.Popen(
         command,
@@ -39,18 +40,39 @@ def run_checked(
         text=True,
         encoding="utf-8",
         errors="replace",
-        creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0,
+        creationflags=(
+            subprocess.CREATE_NO_WINDOW
+            if hasattr(subprocess, "CREATE_NO_WINDOW")
+            else 0
+        ),
     )
-    while process.poll() is None:
+    started = time.monotonic()
+    while True:
         if cancelled and cancelled():
             process.terminate()
             try:
-                process.wait(timeout=5)
+                stdout, stderr = process.communicate(timeout=5)
             except subprocess.TimeoutExpired:
                 process.kill()
+                stdout, stderr = process.communicate()
             raise InterruptedError
-        time.sleep(0.2)
-    stdout, stderr = process.communicate()
+        if timeout_seconds is not None and time.monotonic() - started > timeout_seconds:
+            process.terminate()
+            try:
+                stdout, stderr = process.communicate(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                stdout, stderr = process.communicate()
+            details = stderr.strip().splitlines()[-12:]
+            raise RuntimeError(
+                f"Comando excedeu {timeout_seconds:.0f}s: {' '.join(command[:4])}\n"
+                + "\n".join(details)
+            )
+        try:
+            stdout, stderr = process.communicate(timeout=0.25)
+            break
+        except subprocess.TimeoutExpired:
+            continue
     if process.returncode:
         details = stderr.strip().splitlines()[-12:]
         raise RuntimeError(
@@ -81,7 +103,8 @@ def probe_media(path: Path) -> MediaInfo:
             "-of",
             "json",
             str(path),
-        ]
+        ],
+        timeout_seconds=30,
     )
     payload = json.loads(result.stdout)
     streams = payload.get("streams", [])
@@ -169,7 +192,11 @@ def iter_gray_frames(
         command,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0,
+        creationflags=(
+            subprocess.CREATE_NO_WINDOW
+            if hasattr(subprocess, "CREATE_NO_WINDOW")
+            else 0
+        ),
     )
     frame_size = width * height
     assert process.stdout is not None

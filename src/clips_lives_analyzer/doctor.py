@@ -38,17 +38,24 @@ def run_diagnostics(paths: AppPaths, config: AnalyzerConfig) -> list[Check]:
         )
     except Exception as exc:
         checks.append(Check("Ollama", False, str(exc)))
-    cuda = Transcriber.cuda_available()
-    if cuda:
-        whisper_details = "GPU NVIDIA detectada pelo CTranslate2; a inferência confirmará as bibliotecas CUDA."
+
+    transcriber = Transcriber(config)
+    if transcriber.cuda_available():
+        whisper_ok, whisper_details = transcriber.gpu_runtime_check()
     elif config.whisper_allow_cpu_fallback:
-        whisper_details = "CUDA não detectada; fallback para CPU foi explicitamente habilitado."
+        whisper_ok = False
+        whisper_details = (
+            "CUDA não detectada; fallback para CPU foi explicitamente habilitado. "
+            "A análise funcionará, mas será bem mais lenta."
+        )
     else:
+        whisper_ok = False
         whisper_details = (
             "CUDA não detectada e fallback para CPU está desativado; a análise será bloqueada "
             "em vez de consumir CPU silenciosamente."
         )
-    checks.append(Check("Whisper GPU", cuda, whisper_details))
+    checks.append(Check("Whisper GPU", whisper_ok, whisper_details))
+
     usage = shutil.disk_usage(paths.root.parent if paths.root.parent.exists() else Path.cwd())
     free_gb = usage.free / (1024**3)
     checks.append(

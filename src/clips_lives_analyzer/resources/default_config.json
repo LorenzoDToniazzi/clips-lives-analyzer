@@ -6,6 +6,8 @@
   "whisper_gpu_compute_type": "int8_float16",
   "whisper_cpu_compute_type": "int8",
   "whisper_allow_cpu_fallback": false,
+  "whisper_startup_timeout_seconds": 180,
+  "whisper_inactivity_timeout_seconds": 180,
   "ollama_url": "http://127.0.0.1:11434",
   "text_model": "qwen3-vl:8b",
   "vision_model": "qwen3-vl:8b",

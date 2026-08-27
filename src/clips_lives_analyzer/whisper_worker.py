@@ -26,6 +26,7 @@ def run_worker(
     device: str,
     compute_type: str,
     language: str,
+    disable_vad: bool = False,
 ) -> int:
     try:
         emit("model_loading", device=device, model=model_name)
@@ -39,8 +40,10 @@ def run_worker(
             language=None if language == "auto" else language,
             beam_size=5,
             word_timestamps=True,
-            vad_filter=True,
-            vad_parameters={"min_silence_duration_ms": 900},
+            vad_filter=not disable_vad,
+            vad_parameters=(
+                None if disable_vad else {"min_silence_duration_ms": 900}
+            ),
             condition_on_previous_text=True,
             initial_prompt=INITIAL_PROMPT,
         )
@@ -88,6 +91,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--device", choices=("cuda", "cpu"), required=True)
     parser.add_argument("--compute-type", required=True)
     parser.add_argument("--language", default="pt")
+    parser.add_argument("--disable-vad", action="store_true")
     return parser
 
 
@@ -100,6 +104,7 @@ def main() -> None:
             device=args.device,
             compute_type=args.compute_type,
             language=args.language,
+            disable_vad=args.disable_vad,
         )
     )
 

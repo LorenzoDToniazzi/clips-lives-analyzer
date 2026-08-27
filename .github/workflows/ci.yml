@@ -62,8 +62,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $tag = "vod-splitter-portable-latest"
-          gh release view $tag --repo $env:GITHUB_REPOSITORY 2>$null
-          if ($LASTEXITCODE -eq 0) {
+          $existingTags = gh release list `
+            --repo $env:GITHUB_REPOSITORY `
+            --limit 100 `
+            --json tagName `
+            --jq '.[].tagName'
+          if ($existingTags -contains $tag) {
             gh release delete $tag --repo $env:GITHUB_REPOSITORY --cleanup-tag --yes
           }
           gh release create $tag `

@@ -69,13 +69,19 @@ class Transcriber:
         finally:
             stream.close()
 
-    def _worker_command(self, audio_path: Path, device: str) -> list[str]:
+    def _worker_command(
+        self,
+        audio_path: Path,
+        device: str,
+        *,
+        disable_vad: bool = False,
+    ) -> list[str]:
         compute_type = (
             self.config.whisper_gpu_compute_type
             if device == "cuda"
             else self.config.whisper_cpu_compute_type
         )
-        return [
+        command = [
             sys.executable,
             "-m",
             "clips_lives_analyzer.whisper_worker",
@@ -90,6 +96,9 @@ class Transcriber:
             "--language",
             self.config.language,
         ]
+        if disable_vad:
+            command.append("--disable-vad")
+        return command
 
     def _run_worker(
         self,
@@ -101,6 +110,7 @@ class Transcriber:
         cancelled: Callable[[], bool],
         startup_timeout_seconds: float | None = None,
         inactivity_timeout_seconds: float | None = None,
+        disable_vad: bool = False,
     ) -> tuple[list[TranscriptSegment], dict[str, Any]]:
         startup_timeout = float(
             startup_timeout_seconds
@@ -118,7 +128,7 @@ class Transcriber:
             else 0
         )
         process = subprocess.Popen(
-            self._worker_command(audio_path, device),
+            self._worker_command(audio_path, device, disable_vad=disable_vad),
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -281,6 +291,7 @@ class Transcriber:
                         float(self.config.whisper_startup_timeout_seconds), 90.0
                     ),
                     inactivity_timeout_seconds=60.0,
+                    disable_vad=True,
                 )
             except Exception as exc:
                 return False, str(exc).splitlines()[0]

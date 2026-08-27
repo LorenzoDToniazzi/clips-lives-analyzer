@@ -18,15 +18,27 @@ Como não existe recodificação, os cortes respeitam os keyframes do vídeo. Is
 sobreposição em alguns segundos, mas não reduz a qualidade. O manifesto registra os tempos usados
 para que o GPT converta a minutagem local para a minutagem da live.
 
-## Instalação no Windows
+## Versão portátil para Windows - recomendada
 
-1. No GitHub, selecione a branch `feat/vod-splitter`, use **Code > Download ZIP** e
-   extraia a pasta.
-2. Dê dois cliques em `INSTALAR.bat`.
+1. Baixe [`Picotador-de-Lives-portatil.zip`](https://github.com/LorenzoDToniazzi/clips-lives-analyzer/releases/download/vod-splitter-portable-latest/Picotador-de-Lives-portatil.zip).
+2. Extraia todo o ZIP para uma pasta normal.
+3. Abra `Picotador de Lives.exe`.
+
+O pacote já contém Python, FFmpeg e ffprobe. Não exige instalação, `winget`, Git, terminal ou
+configuração manual. Mantenha todos os arquivos extraídos juntos.
+
+Se o Windows exibir o SmartScreen, use **Mais informações > Executar assim mesmo**. O executável é
+gerado automaticamente pelo GitHub Actions a partir deste código, mas ainda não possui assinatura
+digital comercial.
+
+## Instalação pelo código-fonte - alternativa
+
+1. Baixe a branch `feat/vod-splitter` usando **Code > Download ZIP** e extraia a pasta.
+2. Execute `INSTALAR.bat`.
 3. Use o atalho **Picotador de Lives** criado na área de trabalho.
 
-O instalador prepara Python e FFmpeg automaticamente usando o `winget` quando necessário.
-Você não precisa instalar Git, abrir terminal nem escrever código para usar o programa.
+Esta opção instala Python e FFmpeg automaticamente e permanece disponível principalmente para
+diagnóstico e desenvolvimento.
 
 ## Uso
 
@@ -35,6 +47,9 @@ Você não precisa instalar Git, abrir terminal nem escrever código para usar o
 3. Clique em **Iniciar fila**.
 4. Para cada VOD será criada uma pasta com as partes e os manifestos `.txt` e `.json`.
 5. Envie a pasta da live ao Google Drive mantendo os nomes.
+
+Em caso de falha, selecione **Abrir log**. O arquivo fica em
+`%LOCALAPPDATA%\Picotador de Lives\picotador.log`.
 
 Se uma live variável ultrapassaria o limite de tamanho, o programa refaz apenas aquela parte com
 menos duração. Se nem um trecho curto puder ficar abaixo de 256 MB sem recodificação, ele interrompe

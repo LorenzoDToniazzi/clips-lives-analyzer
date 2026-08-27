@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
+import sys
 from collections.abc import Callable
 from pathlib import Path
 
@@ -9,12 +11,32 @@ from live_splitter.models import MediaInfo
 from live_splitter.utils import run_process
 
 
+def _bundled_tool(name: str) -> str | None:
+    executable = f"{name}.exe" if os.name == "nt" else name
+    roots: list[Path] = []
+    configured = os.environ.get("LIVE_SPLITTER_FFMPEG_DIR")
+    if configured:
+        roots.append(Path(configured))
+    if getattr(sys, "frozen", False):
+        roots.append(Path(sys.executable).resolve().parent)
+        bundle_root = getattr(sys, "_MEIPASS", None)
+        if bundle_root:
+            roots.append(Path(bundle_root))
+    for root in roots:
+        candidate = root / executable
+        if candidate.is_file():
+            return str(candidate)
+    return None
+
+
 def require_tools() -> tuple[str, str]:
-    ffmpeg = shutil.which("ffmpeg")
-    ffprobe = shutil.which("ffprobe")
+    ffmpeg = _bundled_tool("ffmpeg") or shutil.which("ffmpeg")
+    ffprobe = _bundled_tool("ffprobe") or shutil.which("ffprobe")
     if not ffmpeg or not ffprobe:
         raise RuntimeError(
-            "FFmpeg e ffprobe não foram encontrados. Execute INSTALAR.bat."
+            "FFmpeg e ffprobe não foram encontrados. Na versão portátil, mantenha "
+            "todos os arquivos extraídos na mesma pasta. Na versão com código-fonte, "
+            "execute INSTALAR.bat."
         )
     return ffmpeg, ffprobe
 

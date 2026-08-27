@@ -1,0 +1,15 @@
+PICOTADOR DE LIVES - VERSÃO PORTÁTIL
+
+1. Extraia TODO o conteúdo do ZIP para uma pasta normal.
+2. Abra "Picotador de Lives.exe".
+3. Adicione uma ou mais lives, escolha a pasta de saída e inicie a fila.
+
+Não execute diretamente de dentro do ZIP e não separe o executável dos arquivos
+ffmpeg.exe e ffprobe.exe. Não é necessário instalar Python, FFmpeg ou qualquer
+outra dependência.
+
+Se ocorrer uma falha, clique em "Abrir log". O diagnóstico também fica em:
+%LOCALAPPDATA%\Picotador de Lives\picotador.log
+
+O VOD original nunca é alterado. As partes usam cópia direta dos streams de
+vídeo e áudio, sem recodificação e sem redução de qualidade.

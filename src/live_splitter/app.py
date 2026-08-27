@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import queue
 import subprocess
@@ -10,9 +11,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
+from live_splitter.media import require_tools
 from live_splitter.models import SplitResult
+from live_splitter.runtime import configure_logging
 from live_splitter.splitter import VodSplitter
-from live_splitter.utils import VIDEO_EXTENSIONS, ProcessCancelled
+from live_splitter.utils import VIDEO_EXTENSIONS, ProcessCancelled, run_process
+
+LOGGER = logging.getLogger(__name__)
 
 
 @dataclass
@@ -26,8 +31,9 @@ class QueueItem:
 
 
 class SplitterWindow:
-    def __init__(self, root: tk.Tk):
+    def __init__(self, root: tk.Tk, log_path: Path):
         self.root = root
+        self.log_path = log_path
         self.items: list[QueueItem] = []
         self.events: queue.Queue[tuple[str, int, object]] = queue.Queue()
         self.worker: threading.Thread | None = None
@@ -80,6 +86,9 @@ class SplitterWindow:
         )
         ttk.Button(actions, text="Abrir resultado", command=self._open_result).pack(
             side="right"
+        )
+        ttk.Button(actions, text="Abrir log", command=self._open_log).pack(
+            side="right", padx=6
         )
 
         table_frame = ttk.Frame(self.root, padding=(18, 8))
@@ -181,11 +190,22 @@ class SplitterWindow:
                 )
                 self.events.put(("done", index, result))
             except ProcessCancelled:
+                LOGGER.info("Processamento cancelado: %s", self.items[index].source)
                 self.events.put(("cancelled", index, None))
                 break
-            except Exception as exc:  # noqa: BLE001 - a fila precisa exibir qualquer falha
+            except Exception as exc:
+                LOGGER.exception("Falha ao picotar %s", self.items[index].source)
                 self.events.put(("error", index, f"{type(exc).__name__}: {exc}"))
         self.events.put(("queue_finished", -1, None))
+
+    @staticmethod
+    def _open_path(target: Path) -> None:
+        if sys.platform == "win32":
+            os.startfile(target)  # type: ignore[attr-defined]
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", str(target)])
+        else:
+            subprocess.Popen(["xdg-open", str(target)])
 
     def _open_result(self) -> None:
         index = self._selected_index()
@@ -201,13 +221,10 @@ class SplitterWindow:
                 "Sem resultado", "A live selecionada ainda não foi concluída."
             )
             return
-        target = item.result.output_dir
-        if sys.platform == "win32":
-            os.startfile(target)  # type: ignore[attr-defined]
-        elif sys.platform == "darwin":
-            subprocess.Popen(["open", str(target)])
-        else:
-            subprocess.Popen(["xdg-open", str(target)])
+        self._open_path(item.result.output_dir)
+
+    def _open_log(self) -> None:
+        self._open_path(self.log_path)
 
     def _rebuild_table(self) -> None:
         for item_id in self.table.get_children():
@@ -280,6 +297,28 @@ class SplitterWindow:
 
 
 def main() -> None:
-    root = tk.Tk()
-    SplitterWindow(root)
-    root.mainloop()
+    log_path = configure_logging()
+    LOGGER.info("Iniciando Picotador de Lives")
+    self_test = "--self-test" in sys.argv
+    try:
+        ffmpeg, ffprobe = require_tools()
+        if self_test:
+            run_process([ffmpeg, "-version"], timeout_seconds=30)
+            run_process([ffprobe, "-version"], timeout_seconds=30)
+            LOGGER.info("Autoteste concluído com sucesso")
+            return
+        root = tk.Tk()
+        SplitterWindow(root, log_path)
+        root.mainloop()
+    except Exception as exc:
+        LOGGER.exception("Falha fatal ao iniciar o programa")
+        if self_test:
+            raise
+        try:
+            messagebox.showerror(
+                "Picotador de Lives",
+                f"O programa não conseguiu iniciar.\n\n{exc}\n\nLog: {log_path}",
+            )
+        except tk.TclError:
+            pass
+        raise

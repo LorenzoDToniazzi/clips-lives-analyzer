@@ -5,6 +5,9 @@ on:
     branches: ["main", "feat/**"]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: windows-latest
@@ -23,3 +26,49 @@ jobs:
         run: python -m compileall -q src tests
       - name: Test real splitting
         run: python -m unittest discover -s tests -v
+
+  portable:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/feat/vod-splitter'
+    needs: test
+    permissions:
+      contents: write
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      - name: Install FFmpeg
+        run: choco install ffmpeg --no-progress -y
+      - name: Install build tools
+        run: python -m pip install -e . pyinstaller
+      - name: Build portable package
+        shell: powershell
+        run: .\scripts\build_portable.ps1
+      - name: Smoke test packaged executable
+        shell: powershell
+        run: '& ".\build\portable\dist\Picotador de Lives\Picotador de Lives.exe" --self-test'
+      - name: Upload portable ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: Picotador-de-Lives-portatil
+          path: build/portable/Picotador-de-Lives-portatil.zip
+          if-no-files-found: error
+      - name: Publish stable portable download
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "vod-splitter-portable-latest"
+          gh release view $tag --repo $env:GITHUB_REPOSITORY 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            gh release delete $tag --repo $env:GITHUB_REPOSITORY --cleanup-tag --yes
+          }
+          gh release create $tag `
+            "build/portable/Picotador-de-Lives-portatil.zip" `
+            --repo $env:GITHUB_REPOSITORY `
+            --target $env:GITHUB_SHA `
+            --title "Picotador de Lives - portátil" `
+            --notes "Versão portátil para Windows. Extraia o ZIP e abra Picotador de Lives.exe. Não exige instalação, Python ou FFmpeg."

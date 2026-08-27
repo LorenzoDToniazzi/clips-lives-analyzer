@@ -106,8 +106,14 @@ if ($LASTEXITCODE -ne 0) {
     throw "Falha ao preparar o Whisper."
 }
 
-Write-Host "Executando diagnóstico..." -ForegroundColor Cyan
+Write-Host "Executando diagnóstico completo, incluindo inferência real do Whisper na GPU..." -ForegroundColor Cyan
 & $venvPython -m clips_lives_analyzer doctor
+if ($LASTEXITCODE -ne 0) {
+    Write-Host ""
+    Write-Host "O programa foi instalado, mas o diagnóstico obrigatório falhou." -ForegroundColor Yellow
+    Write-Host "Se a falha for 'Whisper GPU', confirme CUDA 12, cuBLAS e cuDNN 9 no Windows." -ForegroundColor Yellow
+    throw "Diagnóstico incompleto. Corrija o item marcado como ATENÇÃO antes de analisar VODs."
+}
 
 $desktop = [Environment]::GetFolderPath("Desktop")
 $shortcutPath = Join-Path $desktop "Clips Lives Analyzer.lnk"

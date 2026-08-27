@@ -18,6 +18,8 @@ class AnalyzerConfig:
     whisper_gpu_compute_type: str = "int8_float16"
     whisper_cpu_compute_type: str = "int8"
     whisper_allow_cpu_fallback: bool = False
+    whisper_startup_timeout_seconds: int = 180
+    whisper_inactivity_timeout_seconds: int = 180
     ollama_url: str = "http://127.0.0.1:11434"
     text_model: str = "qwen3-vl:8b"
     vision_model: str = "qwen3-vl:8b"
@@ -60,6 +62,10 @@ class AnalyzerConfig:
             raise ValueError("ollama_context deve ser pelo menos 4096")
         if self.ollama_story_context < self.ollama_context:
             raise ValueError("ollama_story_context deve ser maior ou igual a ollama_context")
+        if self.whisper_startup_timeout_seconds < 30:
+            raise ValueError("whisper_startup_timeout_seconds deve ser pelo menos 30")
+        if self.whisper_inactivity_timeout_seconds < 30:
+            raise ValueError("whisper_inactivity_timeout_seconds deve ser pelo menos 30")
 
     def save(self, path: Path) -> None:
         self.validate()

@@ -62,10 +62,20 @@ def main(argv: list[str] | None = None) -> None:
     paths = AppPaths.default()
     paths.ensure()
     if args.command == "doctor":
-        checks = run_diagnostics(paths, load_config(paths))
+        config = load_config(paths)
+        checks = run_diagnostics(paths, config)
         for check in checks:
             print(f"[{'OK' if check.ok else 'ATENÇÃO'}] {check.name}: {check.details}")
-        raise SystemExit(0 if all(check.ok for check in checks if check.name != "Whisper GPU") else 1)
+        required_failures = [
+            check
+            for check in checks
+            if not check.ok
+            and not (
+                check.name == "Whisper GPU"
+                and config.whisper_allow_cpu_fallback
+            )
+        ]
+        raise SystemExit(1 if required_failures else 0)
     if args.command == "analyze":
         raise SystemExit(console_analyze(args.videos, paths))
     from clips_lives_analyzer.gui import launch

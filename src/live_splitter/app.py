@@ -5,6 +5,7 @@ import os
 import queue
 import subprocess
 import sys
+import tempfile
 import threading
 import tkinter as tk
 from dataclasses import dataclass
@@ -15,9 +16,38 @@ from live_splitter.media import require_tools
 from live_splitter.models import SplitResult
 from live_splitter.runtime import configure_logging
 from live_splitter.splitter import VodSplitter
+from live_splitter.transcription import (
+    FasterWhisperTranscriber,
+    transcribe_split_result,
+    update_manifest_transcription,
+)
 from live_splitter.utils import VIDEO_EXTENSIONS, ProcessCancelled, run_process
 
 LOGGER = logging.getLogger(__name__)
+
+
+def _self_test_transcription(ffmpeg: str) -> None:
+    with tempfile.TemporaryDirectory() as temp:
+        audio = Path(temp) / "teste.wav"
+        run_process(
+            [
+                ffmpeg,
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=440:sample_rate=16000:duration=1",
+                "-y",
+                str(audio),
+            ],
+            timeout_seconds=30,
+        )
+        FasterWhisperTranscriber(model_name="tiny").transcribe(
+            audio,
+            duration=1.0,
+        )
 
 
 @dataclass
@@ -28,6 +58,7 @@ class QueueItem:
     message: str = "Aguardando"
     result: SplitResult | None = None
     error: str | None = None
+    warning: str | None = None
 
 
 class SplitterWindow:
@@ -41,6 +72,7 @@ class SplitterWindow:
         self.output_root = tk.StringVar(
             value=str(Path.home() / "Videos" / "Lives picotadas")
         )
+        self.generate_transcription = tk.BooleanVar(value=True)
         self.root.title("Picotador de Lives")
         self.root.geometry("1050x650")
         self.root.minsize(840, 520)
@@ -56,7 +88,7 @@ class SplitterWindow:
         ).pack(side="left")
         ttk.Label(
             header,
-            text="Sem compressão - <256 MB - até 20 min - 30 s de contexto",
+            text="Sem compressão - <256 MB - até 20 min - transcrição PT-BR",
             foreground="#555555",
         ).pack(side="left", padx=18, pady=(8, 0))
 
@@ -84,6 +116,11 @@ class SplitterWindow:
         ttk.Button(actions, text="Cancelar atual", command=self.cancel_event.set).pack(
             side="left"
         )
+        ttk.Checkbutton(
+            actions,
+            text="Transcrever em português (large-v3)",
+            variable=self.generate_transcription,
+        ).pack(side="left", padx=(18, 0))
         ttk.Button(actions, text="Abrir resultado", command=self._open_result).pack(
             side="right"
         )
@@ -153,10 +190,12 @@ class SplitterWindow:
     def _start(self) -> None:
         if self.worker and self.worker.is_alive():
             return
+        generate_transcription = self.generate_transcription.get()
         pending = [
             index
             for index, item in enumerate(self.items)
             if item.status in {"Na fila", "Falhou", "Cancelado"}
+            or (generate_transcription and item.status == "Concluído com aviso")
         ]
         if not pending:
             messagebox.showinfo("Fila vazia", "Adicione ao menos uma live.")
@@ -169,26 +208,97 @@ class SplitterWindow:
             return
         self.cancel_event.clear()
         self.worker = threading.Thread(
-            target=self._run_queue, args=(pending, output), daemon=True
+            target=self._run_queue,
+            args=(pending, output, generate_transcription),
+            daemon=True,
         )
         self.worker.start()
 
-    def _run_queue(self, pending: list[int], output: Path) -> None:
+    def _run_queue(
+        self,
+        pending: list[int],
+        output: Path,
+        generate_transcription: bool,
+    ) -> None:
         splitter = VodSplitter()
         for index in pending:
             if self.cancel_event.is_set():
                 break
-            self.events.put(("status", index, ("Picotando", 0.0, "Iniciando")))
             try:
-                result = splitter.split(
-                    self.items[index].source,
-                    output,
-                    progress=lambda ratio, message, item_index=index: self.events.put(
-                        ("progress", item_index, (ratio, message))
-                    ),
-                    cancelled=self.cancel_event.is_set,
+                result = (
+                    self.items[index].result
+                    if generate_transcription
+                    and self.items[index].result is not None
+                    and self.items[index].status
+                    in {"Concluído com aviso", "Cancelado"}
+                    else None
                 )
-                self.events.put(("done", index, result))
+                if result is None:
+                    self.events.put(
+                        ("status", index, ("Picotando", 0.0, "Iniciando"))
+                    )
+                    result = splitter.split(
+                        self.items[index].source,
+                        output,
+                        progress=lambda ratio, message, item_index=index: self.events.put(
+                            (
+                                "progress",
+                                item_index,
+                                (
+                                    ratio * (0.65 if generate_transcription else 1.0),
+                                    message,
+                                ),
+                            )
+                        ),
+                        cancelled=self.cancel_event.is_set,
+                    )
+                    self.events.put(("partial_result", index, result))
+                else:
+                    self.events.put(
+                        (
+                            "status",
+                            index,
+                            ("Transcrevendo", 65.0, "Tentando novamente sem refazer cortes"),
+                        )
+                    )
+                if generate_transcription:
+                    self.events.put(
+                        (
+                            "status",
+                            index,
+                            ("Transcrevendo", 65.0, "Preparando faster-whisper"),
+                        )
+                    )
+                    try:
+                        transcribe_split_result(
+                            result,
+                            progress=lambda ratio, message, item_index=index: self.events.put(
+                                (
+                                    "progress",
+                                    item_index,
+                                    (0.65 + ratio * 0.35, message),
+                                )
+                            ),
+                            cancelled=self.cancel_event.is_set,
+                        )
+                    except ProcessCancelled:
+                        update_manifest_transcription(
+                            result,
+                            error="Transcrição cancelada pelo usuário",
+                        )
+                        raise
+                    except Exception as exc:
+                        LOGGER.exception(
+                            "Partes prontas, mas a transcrição falhou para %s",
+                            self.items[index].source,
+                        )
+                        warning = f"{type(exc).__name__}: {exc}"
+                        update_manifest_transcription(result, error=warning)
+                        self.events.put(("done_warning", index, (result, warning)))
+                        continue
+                self.events.put(
+                    ("done", index, (result, generate_transcription))
+                )
             except ProcessCancelled:
                 LOGGER.info("Processamento cancelado: %s", self.items[index].source)
                 self.events.put(("cancelled", index, None))
@@ -216,6 +326,11 @@ class SplitterWindow:
         if item.error:
             messagebox.showerror("Falha ao picotar", item.error)
             return
+        if item.warning:
+            messagebox.showwarning(
+                "Vídeos prontos; transcrição incompleta",
+                f"Os vídeos e manifestos foram gerados normalmente.\n\n{item.warning}",
+            )
         if not item.result:
             messagebox.showinfo(
                 "Sem resultado", "A live selecionada ainda não foi concluída."
@@ -255,15 +370,35 @@ class SplitterWindow:
                 self.items[index].status = status
                 self.items[index].progress = progress
                 self.items[index].message = message
+                if status == "Picotando":
+                    self.items[index].error = None
+                    self.items[index].warning = None
             elif event == "progress":
                 ratio, message = payload  # type: ignore[misc]
                 self.items[index].progress = float(ratio) * 100
                 self.items[index].message = str(message)
             elif event == "done":
+                result, has_transcription = payload  # type: ignore[misc]
                 self.items[index].status = "Concluído"
                 self.items[index].progress = 100
-                self.items[index].message = "Partes e manifesto prontos"
+                self.items[index].message = (
+                    "Partes, manifesto e transcrição prontos"
+                    if has_transcription
+                    else "Partes e manifesto prontos"
+                )
+                self.items[index].result = result
+                self.items[index].warning = None
+                self.items[index].error = None
+            elif event == "partial_result":
                 self.items[index].result = payload  # type: ignore[assignment]
+            elif event == "done_warning":
+                result, warning = payload  # type: ignore[misc]
+                self.items[index].status = "Concluído com aviso"
+                self.items[index].progress = 100
+                self.items[index].message = "Partes prontas; transcrição falhou"
+                self.items[index].result = result
+                self.items[index].warning = str(warning)
+                self.items[index].error = None
             elif event == "cancelled":
                 self.items[index].status = "Cancelado"
                 self.items[index].message = "Interrompido pelo usuário"
@@ -275,7 +410,7 @@ class SplitterWindow:
                 self.cancel_event.clear()
         if changed or len(self.table.get_children()) != len(self.items):
             self._rebuild_table()
-        completed = sum(item.status == "Concluído" for item in self.items)
+        completed = sum(item.status.startswith("Concluído") for item in self.items)
         self.footer.configure(
             text=(
                 f"{len(self.items)} live(s) na fila - {completed} concluída(s). "
@@ -305,6 +440,9 @@ def main() -> None:
         if self_test:
             run_process([ffmpeg, "-version"], timeout_seconds=30)
             run_process([ffprobe, "-version"], timeout_seconds=30)
+            version = FasterWhisperTranscriber.require_runtime()
+            LOGGER.info("faster-whisper %s encontrado", version)
+            _self_test_transcription(ffmpeg)
             LOGGER.info("Autoteste concluído com sucesso")
             return
         root = tk.Tk()

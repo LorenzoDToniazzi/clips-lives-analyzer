@@ -4,11 +4,16 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "picotador-lives"
-version = "1.1.0"
-description = "Divide VODs grandes sem recodificar e preserva a minutagem global"
+version = "1.2.0"
+description = "Divide VODs e gera transcrição local alinhada à minutagem global"
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
-dependencies = []
+dependencies = [
+    "faster-whisper>=1.1,<2",
+    "socksio>=1.0,<2",
+    "nvidia-cublas-cu12==12.8.4.1; platform_system == 'Windows'",
+    "nvidia-cudnn-cu12==9.8.0.87; platform_system == 'Windows'",
+]
 
 [project.scripts]
 picotador-lives = "live_splitter.app:main"

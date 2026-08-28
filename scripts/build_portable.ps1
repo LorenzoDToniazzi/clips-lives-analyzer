@@ -44,6 +44,14 @@ python -m PyInstaller `
     --contents-directory "." `
     --name "Picotador de Lives" `
     --paths "src" `
+    --collect-all "faster_whisper" `
+    --collect-all "ctranslate2" `
+    --collect-all "tokenizers" `
+    --collect-all "huggingface_hub" `
+    --collect-all "onnxruntime" `
+    --collect-all "av" `
+    --collect-all "nvidia.cublas" `
+    --collect-all "nvidia.cudnn" `
     --workpath $workPath `
     --specpath $specPath `
     --distpath $distPath `
@@ -53,6 +61,12 @@ python -m PyInstaller `
 
 if ($LASTEXITCODE -ne 0) {
     throw "O PyInstaller não conseguiu gerar o executável."
+}
+
+$cublas = Get-ChildItem $appPath -Recurse -Filter "cublas64_12.dll" -File
+$cudnn = Get-ChildItem $appPath -Recurse -Filter "cudnn64_9.dll" -File
+if (-not $cublas -or -not $cudnn) {
+    throw "As bibliotecas NVIDIA CUDA/cuDNN não foram incluídas no pacote portátil."
 }
 
 Copy-Item "LEIA-ME-PORTATIL.txt" (Join-Path $appPath "LEIA-ME.txt") -Force

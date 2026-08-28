@@ -2,14 +2,23 @@ PICOTADOR DE LIVES - VERSÃO PORTÁTIL
 
 1. Extraia TODO o conteúdo do ZIP para uma pasta normal.
 2. Abra "Picotador de Lives.exe".
-3. Adicione uma ou mais lives, escolha a pasta de saída e inicie a fila.
+3. Mantenha "Transcrever em português (large-v3)" marcado.
+4. Adicione uma ou mais lives, escolha a pasta de saída e inicie a fila.
 
 Não execute diretamente de dentro do ZIP e não separe o executável dos arquivos
-ffmpeg.exe e ffprobe.exe. Não é necessário instalar Python, FFmpeg ou qualquer
-outra dependência.
+ffmpeg.exe e ffprobe.exe. Não é necessário instalar Python, FFmpeg ou o
+faster-whisper separadamente.
+
+No primeiro uso da transcrição, o modelo large-v3 é baixado automaticamente e
+salvo em %LOCALAPPDATA%\Picotador de Lives\modelos-whisper. O programa tenta
+usar NVIDIA/CUDA e continua pela CPU se a GPU não estiver disponível.
+As bibliotecas necessárias de CUDA 12 e cuDNN 9 já acompanham o ZIP; mantenha
+todos os arquivos e pastas extraídos juntos.
 
 Se ocorrer uma falha, clique em "Abrir log". O diagnóstico também fica em:
 %LOCALAPPDATA%\Picotador de Lives\picotador.log
 
 O VOD original nunca é alterado. As partes usam cópia direta dos streams de
-vídeo e áudio, sem recodificação e sem redução de qualidade.
+vídeo e áudio, sem recodificação e sem redução de qualidade. A transcrição é
+feita uma vez sobre a linha do tempo completa; depois cada parte recebe um TXT
+e JSON com os tempos local e global calculados pelos offsets do manifesto.

@@ -1,8 +1,9 @@
 # Picotador de Lives
 
 Aplicativo local para dividir VODs grandes em partes que o ChatGPT consegue acessar pelo
-Google Drive. Ele não analisa, não comprime e não altera a qualidade: vídeo, áudio e demais
-faixas são apenas copiados para novos arquivos com FFmpeg.
+Google Drive e transcrever automaticamente toda a fala em português. O vídeo não é
+comprimido nem recodificado: vídeo, áudio e demais faixas são apenas copiados para novos
+arquivos com FFmpeg. A transcrição roda localmente com faster-whisper.
 
 ## Regras fixas
 
@@ -11,6 +12,9 @@ faixas são apenas copiados para novos arquivos com FFmpeg.
 - cada parte, exceto a primeira, repete aproximadamente 30 segundos da anterior;
 - nomes são ordenáveis: `live 1 - arquivo 001.mp4`, `002`, `003`...;
 - cada live recebe um manifesto com o início global real de cada arquivo;
+- a transcrição usa por padrão português e o modelo `large-v3`;
+- o VOD original é transcrito uma vez na timeline completa;
+- cada MP4 recebe um TXT e JSON com timestamps locais e globais;
 - o VOD original nunca é modificado ou removido;
 - o processamento acontece 100% no computador.
 
@@ -25,7 +29,15 @@ para que o GPT converta a minutagem local para a minutagem da live.
 3. Abra `Picotador de Lives.exe`.
 
 O pacote já contém Python, FFmpeg e ffprobe. Não exige instalação, `winget`, Git, terminal ou
-configuração manual. Mantenha todos os arquivos extraídos juntos.
+configuração manual. Também contém o faster-whisper; o modelo `large-v3` é baixado
+automaticamente no primeiro uso e mantido em
+`%LOCALAPPDATA%\Picotador de Lives\modelos-whisper`. Mantenha todos os arquivos extraídos
+juntos.
+
+O programa tenta primeiro NVIDIA/CUDA em `float16`. Se as bibliotecas de GPU não estiverem
+disponíveis, repete automaticamente pela CPU em `int8`. O pacote portátil inclui as DLLs
+necessárias de CUDA 12 e cuDNN 9; ainda é necessário ter um driver NVIDIA compatível. Uma
+falha de transcrição não apaga nem invalida as partes de vídeo já criadas.
 
 Se o Windows exibir o SmartScreen, use **Mais informações > Executar assim mesmo**. O executável é
 gerado automaticamente pelo GitHub Actions a partir deste código, mas ainda não possui assinatura
@@ -44,9 +56,23 @@ diagnóstico e desenvolvimento.
 
 1. Clique em **Adicionar lives** e selecione um ou mais VODs.
 2. Escolha a pasta de saída.
-3. Clique em **Iniciar fila**.
-4. Para cada VOD será criada uma pasta com as partes e os manifestos `.txt` e `.json`.
-5. Envie a pasta da live ao Google Drive mantendo os nomes.
+3. Deixe **Transcrever em português (large-v3)** marcado. Desmarque apenas quando quiser
+   gerar somente os vídeos e o manifesto.
+4. Clique em **Iniciar fila**.
+5. Aguarde as etapas **Picotando** e **Transcrevendo**. No primeiro uso, o download do modelo
+   pode demorar e a porcentagem pode ficar parada enquanto ele é carregado.
+6. Para cada VOD será criada uma pasta com as partes, manifestos e transcrições.
+7. Envie a pasta inteira ao Google Drive mantendo todos os nomes.
+
+O manifesto JSON é a fonte de verdade. O faster-whisper fornece os tempos na timeline do VOD
+original, e o programa calcula para cada parte:
+
+```text
+tempo local = tempo global da fala - início global real do arquivo
+```
+
+Trechos dentro da sobreposição aparecem nos dois arquivos com o mesmo `segment_id`, permitindo
+deduplicação sem perder contexto.
 
 Em caso de falha, selecione **Abrir log**. O arquivo fica em
 `%LOCALAPPDATA%\Picotador de Lives\picotador.log`.
@@ -60,10 +86,26 @@ Exemplo de saída:
 ```text
 live 1/
   live 1 - arquivo 001.mp4
+  live 1 - arquivo 001 - transcricao.txt
+  live 1 - arquivo 001 - transcricao.json
   live 1 - arquivo 002.mp4
+  live 1 - arquivo 002 - transcricao.txt
+  live 1 - arquivo 002 - transcricao.json
   live 1 - arquivo 003.mp4
+  live 1 - arquivo 003 - transcricao.txt
+  live 1 - arquivo 003 - transcricao.json
+  TRANSCRICAO - live 1.txt
+  TRANSCRICAO - live 1.json
+  TRANSCRICAO - live 1.srt
   MANIFESTO - live 1.txt
   MANIFESTO - live 1.json
+```
+
+O TXT de cada arquivo traz as duas referências na mesma linha:
+
+```text
+[ARQUIVO 00:07:42.120-00:07:48.900 | LIVE 01:17:42.120-01:17:48.900]
+Essa interação funciona porque o E aplica...
 ```
 
 ## Desenvolvimento
